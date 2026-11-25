@@ -1,0 +1,119 @@
+using System;
+using System.IO;
+using System.Reflection;
+using UniSpring.Data;
+using UniSpring.DependencyInjection;
+using UniSpring.Logging;
+using UniSpring.Logging.Domain;
+using UniSpring.Logging.Dto;
+using UnityEngine;
+
+namespace {{NAMESPACE}}.Bootstrap
+{
+    /// <summary>
+    /// The application-wide composition root of the UniSpring container. It only
+    /// configures; it never resolves beans or runs game logic.
+    /// <list type="bullet">
+    /// <item>"Api-only between modules" is checked by the container, strictly.</item>
+    /// <item>Assemblies whose name contains "Editor" or "Tests" (including the
+    /// <c>*.TestSupport</c> fakes) are not scanned.</item>
+    /// <item>Saves: one <see cref="FileDocumentStore"/> under
+    /// <c>persistentDataPath/{{GAME_FOLDER}}/Store</c> (or <c>{{ENV_PREFIX}}_SAVE_ROOT</c>); it is the
+    /// container's document store, transaction manager and reset. The game's single
+    /// <c>IDocumentSerializer</c> is a [Component] of its Saves module.</item>
+    /// <item>Log sources are dotted paths under <c>Assets/Src</c> without the
+    /// <c>Scripts</c> and <c>Internal</c> folders.</item>
+    /// <item><c>logging.properties</c>: <c>{{ENV_PREFIX}}_LOG_CONFIG</c>, else
+    /// <c>Assets/Src/Resources/logging.properties.txt</c> in the editor, else
+    /// the <c>Resources</c> asset in a player.</item>
+    /// </list>
+    /// Verify every call against the installed UniSpring version
+    /// (Library/PackageCache/com.ialex86.unispring@*/Documentation~/configuration.md).
+    /// </summary>
+    public static class UniSpringConfiguration
+    {
+        public const string SaveRootVariable = "{{ENV_PREFIX}}_SAVE_ROOT";
+
+        private static readonly string[] s_ToolingNameParts = { "editor", "tests" };
+
+        public static LoggingPathOptions LoggingPaths()
+        {
+            return new LoggingPathOptions
+            {
+                EnvironmentVariable = "{{ENV_PREFIX}}_LOG_CONFIG",
+                EditorRelativePath = "Src/Resources/logging.properties.txt",
+                ResourceName = "logging.properties",
+                RequiredInEditor = true,
+            };
+        }
+
+        public static ModuleBoundaryOptions ModuleBoundaries()
+        {
+            var options = new ModuleBoundaryOptions { Enabled = true, Strict = true };
+            options.SharedAssemblies.Add("{{NAMESPACE}}.Bootstrap");
+            return options;
+        }
+
+        public static GameLogSourceOptions LogSources()
+        {
+            return new GameLogSourceOptions
+            {
+                SourceRoot = "/Assets/Src/",
+                IgnoredSegments = new[] { "Scripts", "Internal" },
+            };
+        }
+
+        public static bool IsScanned(Assembly assembly)
+        {
+            if (assembly == null)
+                return false;
+            var name = assembly.GetName().Name ?? string.Empty;
+            return !ContainsToolingPart(name);
+        }
+
+        public static string SaveRoot()
+        {
+            var overridden = Environment.GetEnvironmentVariable(SaveRootVariable);
+            if (!string.IsNullOrEmpty(overridden))
+                return Path.GetFullPath(overridden);
+            return Path.Combine(Application.persistentDataPath, "{{GAME_FOLDER}}", "Store");
+        }
+
+        private static bool ContainsToolingPart(string name)
+        {
+            for (var index = 0; index < s_ToolingNameParts.Length; index++)
+            {
+                if (name.IndexOf(s_ToolingNameParts[index], StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Before the container is built (it builds before the first scene
+        /// loads) and before the first log entry of the session.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ConfigurePlaySession()
+        {
+            GameLog.ConfigureSource(LogSources());
+            RuntimeContext.AssemblyFilter = IsScanned;
+            RuntimeContext.Configure(
+                context =>
+                {
+                    context.RegisterInstance(LoggingPaths());
+                    FileDocumentStore.Install(context, SaveRoot());
+                },
+                ModuleBoundaries());
+        }
+
+#if UNITY_EDITOR
+        /// <summary>Edit-mode logs (tools, tests) use the same source names.</summary>
+        [UnityEditor.InitializeOnLoadMethod]
+        private static void ConfigureEditor()
+        {
+            GameLog.ConfigureSource(LogSources());
+        }
+#endif
+    }
+}

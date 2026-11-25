@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {"type": "command", "bash": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" copilot start", "timeoutSec": 120}
+    ],
+    "postToolUse": [
+      {"type": "command", "bash": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" copilot edit", "timeoutSec": 60}
+    ],
+    "agentStop": [
+      {"type": "command", "bash": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" copilot stop", "timeoutSec": 180}
+    ]
+  }
+}

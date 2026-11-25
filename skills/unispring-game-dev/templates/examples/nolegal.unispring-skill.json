@@ -1,0 +1,27 @@
+{
+  "srcRoot": "Assets/Src",
+  "scriptsRoot": "Assets/Src/Scripts",
+  "assemblyPrefix": "SLRR",
+  "rootNamespace": "NoLegal",
+  "testsRoot": "Assets/Src/Tests",
+  "docsRoot": "Assets/Src/Doc",
+  "compositionRoot": "Bootstrap",
+  "sharedKits": ["Workshop"],
+  "legacyProjectPrefixes": ["Assets/Scenes/"],
+  "legacyProjectFiles": ["Assets/InputSystem_Actions.inputactions", "Assets/Readme.asset"],
+  "localization": {
+    "enabled": true,
+    "tables": "Assets/Src/Resources/Localization",
+    "languages": ["en", "ru"],
+    "extraUiSinks": [
+      "\\bSet(?:FooterInfo|Lift|Tool|Context|Stats)\\s*\\(",
+      "\\b(?:Column|Stat|StateHint|SoftKey|AddLabel|FinishButton)\\s*\\(",
+      "\\bAction\\s*\\(\\s*\"",
+      "new\\s+(?:CatalogFilter|KeyHint|PartOffer)\\s*\\(",
+      "\\b(?:HotkeyHint|PostTitle)\\b"
+    ],
+    "extraDiagnostics": ["LogRejected\\s*\\(", "EngineStandRejections\\."],
+    "parityMarkers": ["[hold]"],
+    "presentationPathPattern": "/Presentation/"
+  }
+}

@@ -1,0 +1,19 @@
+# The unispring-game-dev gate in GitHub Actions: .github/workflows/unispring-gate.yml
+# Fails a push or pull request that adds architecture violations beyond
+# unispring-baseline.json, or any localization problem.
+name: unispring-gate
+on: [push, pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false            # the checks read code, asmdefs, .meta and tables only
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Gate
+        run: python3 {{SKILL_DIR}}/scripts/gate.py check --root .
+      - name: Skill self-tests
+        run: python3 -m unittest discover -s {{SKILL_DIR}}/tests

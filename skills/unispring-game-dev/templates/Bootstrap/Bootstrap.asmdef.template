@@ -1,0 +1,19 @@
+{
+    "name": "{{NAMESPACE}}.Bootstrap",
+    "rootNamespace": "{{NAMESPACE}}.Bootstrap",
+    "references": [
+        "UniSpring.DependencyInjection",
+        "UniSpring.Data",
+        "UniSpring.Transactions",
+        "UniSpring.Logging"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

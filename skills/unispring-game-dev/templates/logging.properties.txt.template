@@ -1,0 +1,18 @@
+# {{GAME}} logging levels: root + per-source overrides.
+# Levels: Debug, Info, Warn, Error, None.
+#
+# A source is the caller's path under Assets/Src with "Scripts/" and
+# "Internal/" removed, e.g.
+#   Scripts/Garage/Internal/Application/LiftService.cs -> Garage.Application.LiftService
+# A key matches the full source, the file name alone, or any enclosing scope;
+# the most specific key wins.
+#
+# Read from Assets/Src/Resources/logging.properties.txt (editor and player).
+# A logging.properties in persistentDataPath or StreamingAssets overrides it,
+# or point {{ENV_PREFIX}}_LOG_CONFIG at a file.
+root=Info
+
+# Examples:
+# Garage=Debug
+# Garage.Presentation=Warn
+# LiftService=Debug

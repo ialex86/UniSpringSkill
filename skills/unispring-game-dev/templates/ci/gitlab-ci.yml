@@ -1,0 +1,11 @@
+# The unispring-game-dev gate in GitLab CI: include this job in .gitlab-ci.yml.
+# Fails a pipeline that adds architecture violations beyond unispring-baseline.json,
+# or any localization problem.
+unispring-gate:
+  image: python:3.12
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"    # the checks read code, asmdefs, .meta and tables only
+  script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - python3 {{SKILL_DIR}}/scripts/gate.py check --root .
+    - python3 -m unittest discover -s {{SKILL_DIR}}/tests

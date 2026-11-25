@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" claude start", "timeout": 120}
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" claude edit", "timeout": 60}
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" claude stop", "timeout": 180}
+        ]
+      }
+    ]
+  }
+}

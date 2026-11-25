@@ -1,0 +1,37 @@
+# Git LFS: heavy assets stay out of the normal git object store.
+#
+# LFS holds large, machine-generated or vendored bytes (textures, models,
+# audio, plugin binaries). Unity YAML assets (.unity/.prefab/.asset/.mat/.meta)
+# deliberately stay normal text so they remain diffable and mergeable
+# (Project Settings > Editor > Asset Serialization: Force Text).
+# Everyone needs git-lfs once per machine (`git lfs install`); a lean checkout
+# without the payload is `GIT_LFS_SKIP_SMUDGE=1 git clone <url>` + `git lfs pull`.
+
+# textures
+*.png  filter=lfs diff=lfs merge=lfs -text
+*.tga  filter=lfs diff=lfs merge=lfs -text
+*.psd  filter=lfs diff=lfs merge=lfs -text
+*.exr  filter=lfs diff=lfs merge=lfs -text
+*.hdr  filter=lfs diff=lfs merge=lfs -text
+*.jpg  filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.dds  filter=lfs diff=lfs merge=lfs -text
+*.tif  filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+# models
+*.obj  filter=lfs diff=lfs merge=lfs -text
+*.mtl  filter=lfs diff=lfs merge=lfs -text
+*.fbx  filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+# audio
+*.wav  filter=lfs diff=lfs merge=lfs -text
+*.mp3  filter=lfs diff=lfs merge=lfs -text
+*.ogg  filter=lfs diff=lfs merge=lfs -text
+*.aif  filter=lfs diff=lfs merge=lfs -text
+*.aiff filter=lfs diff=lfs merge=lfs -text
+# vendor packages and native binaries
+*.unitypackage filter=lfs diff=lfs merge=lfs -text
+*.dll  filter=lfs diff=lfs merge=lfs -text
+*.so   filter=lfs diff=lfs merge=lfs -text
+*.dylib filter=lfs diff=lfs merge=lfs -text
+*.bundle filter=lfs diff=lfs merge=lfs -text

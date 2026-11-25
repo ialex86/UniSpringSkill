@@ -1,0 +1,13 @@
+<!--
+  UniSpring discovers [Service]/[Component]/[Strategy] beans by reflection over
+  loaded assemblies. Module Runtime assemblies are deliberately not referenced
+  by consumers (they talk to *.Api only), so code stripping must not remove
+  them or their bean types. Add every new <Prefix>.<Module>.Runtime (and
+  .Presentation, when it holds beans) here.
+-->
+<linker>
+  <!-- [Transactional] and other advice on Mono: run-time proxies through DispatchProxy. -->
+  <assembly fullname="System.Reflection.DispatchProxy" preserve="all" ignoreIfMissing="1"/>
+  <assembly fullname="{{NAMESPACE}}.Bootstrap" preserve="all"/>
+  <!-- <assembly fullname="{{PREFIX}}.Saves.Runtime" preserve="all"/> -->
+</linker>

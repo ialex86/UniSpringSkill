@@ -1,0 +1,225 @@
+using System;
+using System.IO;
+using UniSpring.Logging;
+using UnityEditor;
+using UnityEngine;
+
+namespace {{NAMESPACE}}.AgentLease.Editor
+{
+    /// <summary>
+    /// A lease on the Unity Editor for several agents (Claude sessions) working with one
+    /// Unity through MCP: only the lease holder may change the project. MCP doesn't tell
+    /// Unity which session is calling, so the rule is voluntary: an agent takes the lease
+    /// before changing anything and releases it afterwards (see CLAUDE.md). The state is
+    /// kept in Library/AgentLease.json and survives recompiles and restarts.
+    ///
+    /// Called by an agent through execute_code with compiler: "codedom":
+    ///   return {{NAMESPACE}}.AgentLease.Editor.EditorLease.Acquire("agent-name", "what I'm doing");
+    /// </summary>
+    [InitializeOnLoad]
+    public static class EditorLease
+    {
+        public const int DefaultTtlMinutes = 10;
+        private const int MaxTtlMinutes = 60;
+        private const double TitleRefreshSeconds = 5;
+        private const string MenuRoot = "Tools/Agent Lease/";
+
+        private static readonly string StatePath = Path.Combine(
+            Path.GetDirectoryName(Application.dataPath) ?? ".", "Library", "AgentLease.json");
+
+        private static double s_NextTitleRefresh;
+        private static string s_LastTitleState = "";
+
+        static EditorLease()
+        {
+            EditorApplication.updateMainWindowTitle += AppendLeaseToTitle;
+            EditorApplication.update += RefreshTitleWhenStateChanges;
+        }
+
+        /// <summary>Takes the lease. Returns "OK: ... token=..." or "BUSY: ...".</summary>
+        public static string Acquire(string agent, string task, int ttlMinutes = DefaultTtlMinutes)
+        {
+            if (string.IsNullOrWhiteSpace(agent))
+                return "ERROR: pass the agent's name, e.g. Acquire(\"garage-light\", \"baking the garage lights\").";
+
+            var now = Now();
+            var current = Load();
+            if (IsActive(current, now))
+                return Busy(current, now);
+
+            var lease = new LeaseState
+            {
+                owner = agent.Trim(),
+                task = task ?? "",
+                token = Guid.NewGuid().ToString("N").Substring(0, 8),
+                acquiredUnix = now,
+                renewedUnix = now,
+                ttlSeconds = ClampTtl(ttlMinutes) * 60,
+            };
+            Save(lease);
+            GameLog.Info($"Unity leased: '{lease.owner}' — {lease.task} (token {lease.token}, {lease.ttlSeconds / 60} min).");
+            return $"OK: Unity is yours. token={lease.token}. Keep the token: Renew and Release need it. "
+                 + $"Without renewal the lease expires in {lease.ttlSeconds / 60} min. "
+                 + "When done with Unity (and the compile has finished), call Release(token).";
+        }
+
+        /// <summary>Renews your own lease.</summary>
+        public static string Renew(string token, int ttlMinutes = DefaultTtlMinutes)
+        {
+            var now = Now();
+            var current = Load();
+            if (!IsOwnedBy(current, token))
+                return NotOwner(current, now);
+
+            current.renewedUnix = now;
+            current.ttlSeconds = ClampTtl(ttlMinutes) * 60;
+            Save(current);
+            return $"OK: lease renewed for {current.ttlSeconds / 60} min.";
+        }
+
+        /// <summary>Releases your own lease.</summary>
+        public static string Release(string token)
+        {
+            var now = Now();
+            var current = Load();
+            if (!IsOwnedBy(current, token))
+                return NotOwner(current, now);
+
+            DeleteState();
+            GameLog.Info($"Unity released: '{current.owner}'.");
+            return "OK: Unity is free.";
+        }
+
+        /// <summary>Who holds Unity. "FREE: ..." or "HELD: ...".</summary>
+        public static string Status()
+        {
+            var now = Now();
+            var current = Load();
+            if (!IsActive(current, now))
+                return "FREE: Unity is free. Take the lease with Acquire(name, task).";
+            return "HELD: " + Describe(current, now);
+        }
+
+        public static bool IsHeld => IsActive(Load(), Now());
+
+        [MenuItem(MenuRoot + "Status")]
+        private static void LogStatus() => GameLog.Info(Status());
+
+        [MenuItem(MenuRoot + "Force Release")]
+        private static void ForceRelease()
+        {
+            var current = Load();
+            if (current == null)
+            {
+                GameLog.Info("Unity is already free.");
+                return;
+            }
+
+            var confirmed = EditorUtility.DisplayDialog(
+                "Agent Lease",
+                $"Release the lease of agent '{current.owner}' ({current.task})?",
+                "Release",
+                "Cancel");
+            if (!confirmed)
+                return;
+
+            DeleteState();
+            GameLog.Warn($"The lease of agent '{current.owner}' was released by hand.");
+        }
+
+        private static string Busy(LeaseState lease, long now) =>
+            "BUSY: " + Describe(lease, now) + " Don't change the project through Unity MCP now. "
+            + "Do the work that needs no Unity (code in files, a plan) and check Status() later. "
+            + "Read-only tools (read_console, find_gameobjects, unity_docs etc.) are fine.";
+
+        private static string NotOwner(LeaseState lease, long now)
+        {
+            if (!IsActive(lease, now))
+                return "NOT_OWNER: this token holds no lease (it expired or was released). Take it again with Acquire.";
+            return "NOT_OWNER: this token holds no lease. " + Describe(lease, now);
+        }
+
+        private static string Describe(LeaseState lease, long now) =>
+            $"Unity is leased by agent '{lease.owner}' (task: {lease.task}) for {Duration(now - lease.acquiredUnix)}, "
+            + $"expires in {Duration(lease.renewedUnix + lease.ttlSeconds - now)} unless renewed.";
+
+        private static string Duration(long seconds) =>
+            seconds < 60 ? $"{Math.Max(seconds, 0)} s" : $"{seconds / 60} min";
+
+        private static bool IsActive(LeaseState lease, long now) =>
+            lease != null && now - lease.renewedUnix < lease.ttlSeconds;
+
+        private static bool IsOwnedBy(LeaseState lease, string token) =>
+            lease != null && !string.IsNullOrWhiteSpace(token) && lease.token == token.Trim();
+
+        private static int ClampTtl(int minutes) => Mathf.Clamp(minutes, 1, MaxTtlMinutes);
+
+        private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private static LeaseState Load()
+        {
+            if (!File.Exists(StatePath))
+                return null;
+
+            try
+            {
+                var lease = JsonUtility.FromJson<LeaseState>(File.ReadAllText(StatePath));
+                return string.IsNullOrEmpty(lease?.token) ? null : lease;
+            }
+            catch (Exception exception)
+            {
+                GameLog.Debug("Could not read the lease state; treating Unity as free.", exception);
+                return null;
+            }
+        }
+
+        private static void Save(LeaseState lease)
+        {
+            var temp = StatePath + ".tmp";
+            File.WriteAllText(temp, JsonUtility.ToJson(lease, true));
+            File.Copy(temp, StatePath, true);
+            File.Delete(temp);
+            EditorApplication.UpdateMainWindowTitle();
+        }
+
+        private static void DeleteState()
+        {
+            if (File.Exists(StatePath))
+                File.Delete(StatePath);
+            EditorApplication.UpdateMainWindowTitle();
+        }
+
+        private static void AppendLeaseToTitle(ApplicationTitleDescriptor descriptor)
+        {
+            var current = Load();
+            if (!IsActive(current, Now()))
+                return;
+            descriptor.title += $"   🔒 {current.owner}: {current.task}";
+        }
+
+        private static void RefreshTitleWhenStateChanges()
+        {
+            if (EditorApplication.timeSinceStartup < s_NextTitleRefresh)
+                return;
+            s_NextTitleRefresh = EditorApplication.timeSinceStartup + TitleRefreshSeconds;
+
+            var current = Load();
+            var state = IsActive(current, Now()) ? current.token : "";
+            if (state == s_LastTitleState)
+                return;
+            s_LastTitleState = state;
+            EditorApplication.UpdateMainWindowTitle();
+        }
+
+        [Serializable]
+        private sealed class LeaseState
+        {
+            public string owner;
+            public string task;
+            public string token;
+            public long acquiredUnix;
+            public long renewedUnix;
+            public int ttlSeconds;
+        }
+    }
+}

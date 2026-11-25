@@ -1,0 +1,14 @@
+@AGENTS.md
+
+## Claude Code only
+
+The project rules for every agent are in `AGENTS.md` (imported above). In Claude Code,
+additionally:
+
+- **Hooks** (`.claude/settings.json`) run the checks automatically: a baseline of this
+  session at start, a quick check after every `.cs` edit (direct logs, growing
+  `switch`/`else`), and the full gate at the end of every turn — only new violations block.
+- **Review** is the `reviewer` subagent (`.claude/agents/reviewer.md`): run it on the diff
+  before reporting a change under `Assets/` as done, and work through its findings.
+- **Unity MCP** (`mcp-for-unity`) is connected in the Claude app or the user's Claude Code
+  config, not in the repository's `.mcp.json` (the `uvx` path differs per machine).

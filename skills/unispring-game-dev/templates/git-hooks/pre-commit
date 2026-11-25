@@ -1,0 +1,15 @@
+#!/bin/sh
+# unispring-game-dev gate: blocks a commit that adds architecture violations beyond
+# unispring-baseline.json, or any localization problem — whoever wrote the code
+# (Claude Code, Codex, Cursor, Copilot or a person).
+# It checks the working tree, so stash unrelated unstaged edits before committing.
+# A person may skip it once with `git commit --no-verify`; agents never do.
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+for dir in .agents .claude .github .cursor; do
+    GATE="$ROOT/$dir/skills/unispring-game-dev/scripts/gate.py"
+    if [ -f "$GATE" ]; then
+        exec python3 "$GATE" check --root "$ROOT"
+    fi
+done
+echo "unispring-game-dev: gate.py not found under .agents/.claude/.github/.cursor; the gate is skipped." >&2
+exit 0

@@ -1,0 +1,27 @@
+{
+  "description": "unispring-game-dev: session baseline, quick checks after edits, the gate before the turn ends",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {"type": "command", "command": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" codex start", "timeout": 120, "statusMessage": "Recording the quality baseline"}
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {"type": "command", "command": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" codex edit", "timeout": 60, "statusMessage": "Checking the edited files"}
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "command": "python3 \"$(git rev-parse --show-toplevel)/{{SKILL_DIR}}/scripts/hooks/agent_hook.py\" codex stop", "timeout": 180, "statusMessage": "Running the unispring gate"}
+        ]
+      }
+    ]
+  }
+}

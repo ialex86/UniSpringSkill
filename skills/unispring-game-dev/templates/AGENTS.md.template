@@ -1,0 +1,75 @@
+# {{GAME}} — Unity + UniSpring
+
+Instructions for every coding agent working on this project (Claude Code, Codex, Cursor,
+Copilot and others). The full rules are the `unispring-game-dev` skill
+(`{{SKILL_DIR}}/SKILL.md`, Agent Skills format): load it before any change under `Assets/`
+and when designing a subsystem. Project settings for the checks: `unispring-skill.json`.
+
+## Invariants
+
+1. **The only editable zone is `Assets/Src/`.** `Packages/`, `ProjectSettings/`,
+   `Assets/Settings/` and vendor folders are read-only without explicit permission.
+   Move assets together with their `.meta`; never change GUIDs.
+2. **Modules talk only through `*.Api`.** No references to another module's
+   `Internal`/`Runtime`, services, DAOs or ports. `public` ≠ "available to other modules".
+   Module assemblies: `{{PREFIX}}.<Module>.Api` / `.Runtime` / `.Presentation` / `.Editor` / `.Tests`.
+   Layers inside a module: `{{SKILL_DIR}}/references/layers.md`.
+3. **DI is UniSpring** (`com.ialex86.unispring`; configuration —
+   `Assets/Src/Scripts/Bootstrap/UniSpringConfiguration.cs`). Services: `[Service]` +
+   constructor injection of interfaces. MonoBehaviours: `AutowiredMonoBehaviour`,
+   `[Autowired]` fields, `OnDependenciesInjected()`, **never declare `Awake`**. No `new`
+   for services, singletons, `Find*` or Service Locator. Saves — `[Repository]` + mapper +
+   validator, transactions — `[Transactional]`, notifications — `IEventPublisher`,
+   per-frame logic — `ITickable`/`ILifecycle`, tables — `[ConfigurationProperties]`.
+4. **No `switch` / `else` / `else if` in new code.** Choose behaviour with
+   `[Strategy]` + `IKeyedStrategy<TKey>` + `StrategyRegistry`. `if` only as a guard clause.
+5. **Logging only through `UniSpring.Logging.GameLog`.** No `Debug.Log*`, `Console.Write*`,
+   `print`. Never pass the `caller` argument.
+6. **Player-facing text only from language tables** (`Assets/Src/Resources/Localization/<lang>.json`;
+   keys in code, every key in every table, no unused keys).
+7. **Read the actual API first** (UniSpring in `Library/PackageCache`, neighbours' asmdefs).
+8. **Don't fix unrelated legacy violations** and **don't commit or push** unless asked.
+
+## Source of truth
+
+Current code lives only in `Assets/Src/`. When documentation disagrees with code, trust the
+code and report it. Subsystem docs: `Assets/Src/Doc/<Module>/README.md`.
+
+## Checks
+
+Before reporting a change as done, run the gate — it fails only on violations the change
+added (legacy is listed in the committed `unispring-baseline.json`) and on any
+localization problem:
+
+```bash
+python3 {{SKILL_DIR}}/scripts/gate.py check --root .
+```
+
+The same gate runs in the git pre-commit hook and in CI. Never bypass it (`--no-verify`)
+and never grow the baseline to hide new code; shrink it with `gate.py baseline` after
+fixing legacy. Plus the Unity compile and EditMode/PlayMode tests of the touched modules
+(fast run: without `Slow`). A new `.cs` without a `.meta` is flagged until Unity imports it.
+New module: `python3 {{SKILL_DIR}}/scripts/new-module.py --root . --name <Module> [--presentation]`.
+
+## Review
+
+Before reporting a change under `Assets/` as done (and before a commit), have the diff
+reviewed independently: `{{SKILL_DIR}}/references/review.md` says how in each agent, and
+what the reviewer checks. Fix confirmed findings or explain why they don't apply.
+
+## Several agents in one Unity
+
+Unity MCP is connected in each client's own settings; the repository's MCP config stays
+empty. Change the project through Unity MCP **only while holding the lease**; calls go
+through `execute_code` with `compiler: "codedom"`:
+
+```csharp
+return {{NAMESPACE}}.AgentLease.Editor.EditorLease.Acquire("<short-session-name>", "<what I'm doing>");
+return {{NAMESPACE}}.AgentLease.Editor.EditorLease.Renew("<token>");
+return {{NAMESPACE}}.AgentLease.Editor.EditorLease.Release("<token>");
+return {{NAMESPACE}}.AgentLease.Editor.EditorLease.Status();
+```
+
+`BUSY` — work without Unity and check later; never release someone else's lease. Read-only
+calls need no lease. Release the lease before your reply ends. Details:
+`{{SKILL_DIR}}/references/agent-workflow.md`.

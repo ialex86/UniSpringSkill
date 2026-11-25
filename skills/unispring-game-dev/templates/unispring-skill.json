@@ -1,0 +1,21 @@
+{
+  "srcRoot": "Assets/Src",
+  "scriptsRoot": "Assets/Src/Scripts",
+  "assemblyPrefix": "Game",
+  "rootNamespace": "Game",
+  "testsRoot": "Assets/Src/Tests",
+  "docsRoot": "Assets/Src/Doc",
+  "compositionRoot": "Bootstrap",
+  "sharedKits": [],
+  "legacyProjectPrefixes": ["Assets/Scenes/"],
+  "legacyProjectFiles": ["Assets/InputSystem_Actions.inputactions", "Assets/Readme.asset"],
+  "localization": {
+    "enabled": true,
+    "tables": "Assets/Src/Resources/Localization",
+    "languages": ["en"],
+    "extraUiSinks": [],
+    "extraDiagnostics": [],
+    "parityMarkers": [],
+    "presentationPathPattern": "/Presentation/"
+  }
+}
